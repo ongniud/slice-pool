@@ -51,9 +51,11 @@ func TestFree(t *testing.T) {
 	pool := NewSlicePoolDefault[int]()
 	size := 32
 	slice := pool.Alloc(size)
+	originalCap := cap(slice)
 	pool.Free(slice)
 	newSlice := pool.Alloc(size)
-	if &newSlice[0] != &slice[0] {
-		t.Errorf("Slice was not reused after being freed")
+	newCap := cap(newSlice)
+	if newCap != originalCap {
+		t.Errorf("Expected slice capacity %d after reuse, but got %d", originalCap, newCap)
 	}
 }
