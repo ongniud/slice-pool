@@ -32,7 +32,7 @@ func main() {
     // Use the slice...
 
     // Return the slice to the pool
-	p.Free(slice)
+    p.Free(slice)
     fmt.Println("Slice freed and returned to the pool")
 }
 ```
