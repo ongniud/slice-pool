@@ -1,51 +1,59 @@
-package pools
+package pool
 
 import (
+	"reflect"
 	"testing"
 )
 
-func TestSlicePool(t *testing.T) {
-	p, err := NewSlicePool(minBufferSize, maxBufferSize, growFactor, allocFloat32s)
-	if err != nil {
-		panic(err)
+func TestNewSlicePoolDefault(t *testing.T) {
+	pool := NewSlicePoolDefault[int]()
+	if pool == nil {
+		t.Errorf("NewSlicePoolDefault returned nil")
 	}
-
-	size := 10
-	b := p.Alloc(size)
-	defer p.Free(size, b)
-
-}
-
-func BenchmarkAcquireRawObjs(b *testing.B)  {
-	size := 10000
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 100; j++ {
-			a := allocFloat32s(size)()
-			b := a.([]float32)
-			_ = b
-		}
+	if len(pool.sizes) == 0 {
+		t.Errorf("Pool sizes should not be empty")
+	}
+	if len(pool.pools) == 0 {
+		t.Errorf("Pool pools should not be empty")
 	}
 }
 
-func BenchmarkAcquirePooledObjs(b *testing.B)  {
-	p, err := NewSlicePool(minBufferSize, maxBufferSize, growFactor, allocFloat32s)
-	if err != nil {
-		panic(err)
+func TestNewSlicePool(t *testing.T) {
+	min := 8
+	max := 64
+	factor := 2
+	pool := NewSlicePool[int](min, max, factor)
+	if pool == nil {
+		t.Errorf("NewSlicePool returned nil")
 	}
-
-	size := 10000
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 100; j++ {
-			acquireSlice(p, size)
-		}
+	if len(pool.sizes) == 0 {
+		t.Errorf("Pool sizes should not be empty")
+	}
+	if len(pool.pools) == 0 {
+		t.Errorf("Pool pools should not be empty")
+	}
+	expectedSizes := []int{8, 16, 32, 64}
+	if !reflect.DeepEqual(pool.sizes, expectedSizes) {
+		t.Errorf("Expected sizes %v, but got %v", expectedSizes, pool.sizes)
 	}
 }
 
-func acquireSlice(p *SlicePool, size int) {
-	b := p.Alloc(size)
-	p.Free(size, b)
+func TestAlloc(t *testing.T) {
+	pool := NewSlicePoolDefault[int]()
+	size := 32
+	slice := pool.Alloc(size)
+	if cap(slice) < size {
+		t.Errorf("Allocated slice capacity %d is less than requested size %d", cap(slice), size)
+	}
+}
+
+func TestFree(t *testing.T) {
+	pool := NewSlicePoolDefault[int]()
+	size := 32
+	slice := pool.Alloc(size)
+	pool.Free(slice)
+	newSlice := pool.Alloc(size)
+	if &newSlice[0] != &slice[0] {
+		t.Errorf("Slice was not reused after being freed")
+	}
 }
