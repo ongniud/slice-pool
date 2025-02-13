@@ -13,9 +13,11 @@ const (
 
 // SlicePool is a pool for managing slices of different sizes.
 type SlicePool[T any] struct {
-	sizes    []int
-	pools    []sync.Pool
-	min, max int
+	sizes      []int
+	pools      []sync.Pool
+	min, max   int
+	allocCount int
+	freeCount  int
 }
 
 // NewSlicePoolDefault creates a SlicePool with default configuration.
@@ -30,19 +32,20 @@ func NewSlicePool[T any](min, max, factor int) *SlicePool[T] {
 	for size := min; size <= max; size *= factor {
 		sizes = append(sizes, size)
 	}
-	pools := make([]sync.Pool, len(sizes))
-	for idx, size := range sizes {
-		sz := size // Avoid the closure variable capture issue
-		pools[idx].New = func() interface{} {
-			return make([]T, 0, sz)
-		}
-	}
-	return &SlicePool[T]{
+	sp := &SlicePool[T]{
 		sizes: sizes,
-		pools: pools,
+		pools: make([]sync.Pool, len(sizes)),
 		min:   min,
 		max:   max,
 	}
+	for idx, size := range sizes {
+		sz := size
+		sp.pools[idx].New = func() interface{} {
+			sp.allocCount++
+			return make([]T, 0, sz)
+		}
+	}
+	return sp
 }
 
 // Alloc allocates a slice of the specified size from the pool.
@@ -56,10 +59,21 @@ func (p *SlicePool[T]) Alloc(size int) []T {
 
 // Free returns a slice to the pool.
 func (p *SlicePool[T]) Free(slc []T) {
+	p.freeCount++
 	cp := cap(slc)
 	i := sort.SearchInts(p.sizes, cp)
 	if i < len(p.sizes) && p.sizes[i] == cp {
 		slc = slc[:0]
 		p.pools[i].Put(slc)
 	}
+}
+
+// GetAllocCount returns the number of memory allocations.
+func (p *SlicePool[T]) GetAllocCount() int {
+	return p.allocCount
+}
+
+// GetFreeCount returns the number of slice frees.
+func (p *SlicePool[T]) GetFreeCount() int {
+	return p.freeCount
 }

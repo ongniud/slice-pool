@@ -59,3 +59,16 @@ func TestFree(t *testing.T) {
 		t.Errorf("Expected slice capacity %d after reuse, but got %d", originalCap, newCap)
 	}
 }
+
+func TestAllocationAndFreeCount(t *testing.T) {
+	pool := NewSlicePoolDefault[int]()
+	numOperations := 1000
+	for i := 0; i < numOperations; i++ {
+		size := 32
+		slice := pool.Alloc(size)
+		pool.Free(slice)
+	}
+	allocCount := pool.GetAllocCount()
+	freeCount := pool.GetFreeCount()
+	t.Logf("alloc count %d, free count %d", allocCount, freeCount)
+}
