@@ -1,3 +1,3 @@
-module github.com/ongniud/slice_sync_pool
+module github.com/ongniud/slice-pool
 
 go 1.22.3
